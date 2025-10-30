@@ -5,7 +5,7 @@ terraform {
     azurerm = {
       source                = "hashicorp/azurerm"
       version               = ">= 3.70.0"
-      configuration_aliases = [azurerm.secondary]
+      configuration_aliases = [azurerm.hub, azurerm.secondary]
     }
     random = {
       source  = "hashicorp/random"

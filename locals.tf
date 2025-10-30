@@ -27,11 +27,11 @@ locals {
   )
 
   # ===== DNS ZONES =====
-  # Primary DNS zone ID
-  primary_dns_zone_id = var.hub_subscription_id != null ? data.azurerm_private_dns_zone.keyvault_hub[0].id : data.azurerm_private_dns_zone.keyvault_spoke[0].id
+  # Primary DNS zone ID (always from hub provider)
+  primary_dns_zone_id = data.azurerm_private_dns_zone.keyvault_primary.id
   
   # Secondary DNS zone ID
-  secondary_dns_zone_id = var.enable_secondary_private_endpoint && var.secondary_private_dns_zone_name != null ? data.azurerm_private_dns_zone.keyvault_secondary[0].id : null
+  secondary_dns_zone_id = var.enable_secondary_private_endpoint ? data.azurerm_private_dns_zone.keyvault_secondary[0].id : null
   
   # ===== SUBNET IDS =====
   # Get the correct subnet ID for secondary endpoint

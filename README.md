@@ -70,6 +70,43 @@ Before using this module, ensure you have:
 
 4. Appropriate permissions to create resources in all subscriptions
 
+## Provider Configuration
+
+This module requires provider configurations to be passed from the caller. The module expects:
+
+- **Default `azurerm` provider**: For the spoke subscription (where Key Vault resources are created)
+- **`azurerm.hub` provider**: For the hub subscription (where primary DNS zone resides)
+- **`azurerm.secondary` provider**: For the secondary subscription (optional, for secondary DNS zone)
+
+**Important**: Configure these providers in your root module before calling this module. Example:
+
+```hcl
+# Root module provider configuration
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = true
+    }
+  }
+  subscription_id = var.spoke_subscription_id
+}
+
+provider "azurerm" {
+  alias           = "hub"
+  features {}
+  subscription_id = var.hub_subscription_id
+}
+
+provider "azurerm" {
+  alias           = "secondary"
+  features {}
+  subscription_id = var.secondary_subscription_id
+}
+```
+
+Then pass these providers to the module using the `providers` argument (see usage examples below).
+
 ## Usage
 
 ### Scenario 1: Single Private Endpoint (Basic)
@@ -80,13 +117,16 @@ Single private endpoint with DNS in hub subscription:
 module "key_vault" {
   source = "./tfmodule-keyvault"
 
+  # Provider configurations (REQUIRED)
+  providers = {
+    azurerm           = azurerm           # Spoke subscription
+    azurerm.hub       = azurerm.hub       # Hub subscription
+    azurerm.secondary = azurerm.secondary # Secondary subscription (required even if not used)
+  }
+
   # Required variables
-  resource_group_name    = "rg-myapp-prod"
-  environment           = "prod"
-  
-  # Subscriptions
-  spoke_subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # Where Key Vault lives
-  hub_subscription_id   = "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"  # Where DNS zone lives
+  resource_group_name = "rg-myapp-prod"
+  environment         = "prod"
 
   # Networking (shared by both endpoints)
   virtual_network_name                = "vnet-spoke-prod"
@@ -119,14 +159,16 @@ Both private endpoints in the same subnet, but with DNS zones in different subsc
 module "key_vault" {
   source = "./tfmodule-keyvault"
 
+  # Provider configurations (REQUIRED)
+  providers = {
+    azurerm           = azurerm           # Spoke subscription
+    azurerm.hub       = azurerm.hub       # Hub subscription
+    azurerm.secondary = azurerm.secondary # Secondary subscription
+  }
+
   # Required variables
   resource_group_name = "rg-myapp-prod"
-  environment        = "prod"
-  
-  # Subscriptions
-  spoke_subscription_id     = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # Key Vault
-  hub_subscription_id       = "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"  # Primary DNS
-  secondary_subscription_id = "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"  # Secondary DNS
+  environment         = "prod"
 
   # Shared Networking (both endpoints use this)
   virtual_network_name                = "vnet-spoke-prod"
@@ -142,7 +184,9 @@ module "key_vault" {
   enable_secondary_private_endpoint = true
 
   # Secondary DNS Configuration (in secondary subscription)
-  secondary_private_dns_zone_name                = "privatelink.vaultcore.azure.net"
+
+  # Note: secondary_private_dns_zone_name defaults to "privatelink.vaultcore.azure.net"
+
   secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
 
   key_vault_name = "kv-myapp-prod-001"
@@ -161,12 +205,16 @@ Private endpoints in different subnets (e.g., different regions or networks):
 module "key_vault" {
   source = "./tfmodule-keyvault"
 
+  # Provider configurations (REQUIRED)
+  providers = {
+    azurerm           = azurerm           # Spoke subscription
+    azurerm.hub       = azurerm.hub       # Hub subscription
+    azurerm.secondary = azurerm.secondary # Secondary subscription
+  }
+
   resource_group_name = "rg-myapp-prod"
-  environment        = "prod"
-  
-  spoke_subscription_id     = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-  hub_subscription_id       = "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
-  secondary_subscription_id = "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz"
+  environment         = "prod"
+
 
   # Shared defaults (used by primary)
   virtual_network_name                = "vnet-spoke-uksouth"
@@ -185,7 +233,8 @@ module "key_vault" {
   secondary_subnet_name                          = "subnet-pe-ukwest"
   secondary_virtual_network_resource_group_name  = "rg-network-ukwest"
   
-  secondary_private_dns_zone_name                = "privatelink.vaultcore.azure.net"
+  # Secondary DNS zone (uses default name)
+
   secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
 
   key_vault_name = "kv-myapp-prod-001"
@@ -210,13 +259,118 @@ enable_primary_private_endpoint   = false
 enable_secondary_private_endpoint = false
 ```
 
-### Scenario 5: RBAC Role Assignments
+### Scenario 6: Using with `count` (Multiple Key Vaults)
+
+Create multiple Key Vaults conditionally:
+
+```hcl
+module "key_vault" {
+  source = "./tfmodule-keyvault"
+  count  = var.create_key_vault ? 1 : 0
+
+  providers = {
+    azurerm           = azurerm
+    azurerm.hub       = azurerm.hub
+    azurerm.secondary = azurerm.secondary
+  }
+
+  resource_group_name = "rg-myapp-prod"
+  environment         = "prod"
+  
+  virtual_network_name = "vnet-spoke-prod"
+  subnet_name          = "subnet-privateendpoints"
+  
+  enable_primary_private_endpoint = true
+}
+```
+
+### Scenario 7: Using with `for_each` (Multiple Environments)
+
+Create Key Vaults for multiple environments:
+
+```hcl
+module "key_vault" {
+  source   = "./tfmodule-keyvault"
+  for_each = toset(["dev", "test", "prod"])
+
+  providers = {
+    azurerm           = azurerm
+    azurerm.hub       = azurerm.hub
+    azurerm.secondary = azurerm.secondary
+  }
+
+  resource_group_name = "rg-myapp-${each.key}"
+  environment         = each.key
+  key_vault_name      = "kv-myapp-${each.key}"
+  
+  virtual_network_name = "vnet-spoke-${each.key}"
+  subnet_name          = "subnet-privateendpoints"
+  
+  enable_primary_private_endpoint = true
+
+  tags = {
+    Environment = each.key
+  }
+}
+```
+
+### Scenario 8: Using with `depends_on` (Resource Dependencies)
+
+Ensure Key Vault is created after specific resources:
+
+```hcl
+resource "azurerm_resource_group" "main" {
+  name     = "rg-myapp-prod"
+  location = "UK South"
+}
+
+resource "azurerm_virtual_network" "main" {
+  name                = "vnet-spoke-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  address_space       = ["10.0.0.0/16"]
+}
+
+module "key_vault" {
+  source = "./tfmodule-keyvault"
+
+  providers = {
+    azurerm           = azurerm
+    azurerm.hub       = azurerm.hub
+    azurerm.secondary = azurerm.secondary
+  }
+
+  # Ensure network is fully configured before creating Key Vault
+  depends_on = [
+    azurerm_virtual_network.main,
+    azurerm_subnet.main,
+    azurerm_private_dns_zone_virtual_network_link.hub
+  ]
+
+  resource_group_name  = azurerm_resource_group.main.name
+  environment          = "prod"
+  virtual_network_name = azurerm_virtual_network.main.name
+  subnet_name          = "subnet-privateendpoints"
+  
+  enable_primary_private_endpoint = true
+}
+```
+
+### Scenario 9: RBAC Role Assignments
+
 
 Grant service principals or managed identities access to manage or read secrets:
 
 ```hcl
 module "key_vault" {
   source = "./tfmodule-keyvault"
+
+  # Provider configurations (REQUIRED)
+  providers = {
+    azurerm           = azurerm
+    azurerm.hub       = azurerm.hub
+    azurerm.secondary = azurerm.secondary
+  }
 
   # ... other configuration ...
 
@@ -245,6 +399,15 @@ module "key_vault" {
 - For Managed Identities: Find in the managed identity resource → Properties → Principal ID
 - Secrets should **not** be managed in Terraform to avoid state file exposure
 
+## Module Features
+
+✅ **Modern Terraform Module** - No internal provider configurations, fully compatible with:
+- `depends_on` - Control module dependencies
+- `count` - Create multiple instances conditionally
+- `for_each` - Create multiple instances from a map or set
+
+✅ **Multi-Provider Support** - Accepts provider configurations from caller for flexible multi-subscription deployments
+
 ## Requirements
 
 | Name | Version |
@@ -255,12 +418,14 @@ module "key_vault" {
 
 ## Providers
 
-| Name | Version | Purpose |
-|------|---------|---------|
-| azurerm (default) | >= 3.70.0 | Spoke subscription (Key Vault) |
-| azurerm.hub | >= 3.70.0 | Hub subscription (Primary DNS) |
-| azurerm.secondary | >= 3.70.0 | Secondary subscription (Secondary DNS) |
-| random | >= 3.4.0 | Unique naming |
+This module expects the following providers to be configured by the caller:
+
+| Provider Alias | Purpose |
+|----------------|---------|
+| `azurerm` (default) | Spoke subscription - Where Key Vault and its resources are created |
+| `azurerm.hub` | Hub subscription - For primary private DNS zone lookups |
+| `azurerm.secondary` | Secondary subscription - For secondary private DNS zone (optional but must be configured) |
+| `random` | Generates unique suffixes for resource naming |
 
 ## Inputs
 
@@ -270,8 +435,6 @@ module "key_vault" {
 |------|-------------|------|:--------:|
 | resource_group_name | Name of the existing resource group where the Key Vault will be created | `string` | yes |
 | environment | Environment name (e.g., dev, test, prod) | `string` | yes |
-| spoke_subscription_id | Subscription ID for the spoke subscription (where Key Vault will be created) | `string` | yes |
-| hub_subscription_id | Subscription ID for the hub subscription (for primary DNS zone lookup) | `string` | yes |
 | virtual_network_name | Name of the existing virtual network (used by both private endpoints unless overridden) | `string` | yes |
 | subnet_name | Name of the existing subnet for private endpoints (used by both unless overridden) | `string` | yes |
 
@@ -297,11 +460,10 @@ module "key_vault" {
 
 | Name | Description | Type | Default |
 |------|-------------|------|---------|
-| secondary_subscription_id | Subscription ID for secondary subscription | `string` | `null` |
 | secondary_virtual_network_name | Override VNet for secondary endpoint | `string` | Uses `virtual_network_name` |
 | secondary_subnet_name | Override subnet for secondary endpoint | `string` | Uses `subnet_name` |
 | secondary_virtual_network_resource_group_name | Override VNet RG for secondary endpoint | `string` | Uses `virtual_network_resource_group_name` |
-| secondary_private_dns_zone_name | Name of private DNS zone for secondary endpoint | `string` | `null` |
+| secondary_private_dns_zone_name | Name of private DNS zone for secondary endpoint | `string` | `privatelink.vaultcore.azure.net` |
 | secondary_private_dns_zone_resource_group_name | Resource group of secondary DNS zone | `string` | `null` |
 | secondary_private_endpoint_name | Custom name for secondary private endpoint | `string` | `{key_vault_name}-pe-secondary` |
 | secondary_network_interface_name | Custom name for secondary NIC | `string` | `{key_vault_name}-pe-secondary-nic` |
