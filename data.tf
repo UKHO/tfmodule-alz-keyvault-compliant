@@ -53,24 +53,17 @@ data "azurerm_subnet" "secondary_override" {
 }
 
 # ===== PRIVATE DNS ZONES =====
-# Private DNS zone from hub subscription (when hub_subscription_id is provided)
-data "azurerm_private_dns_zone" "keyvault_hub" {
-  count               = var.hub_subscription_id != null ? 1 : 0
+# Primary Private DNS zone - always from hub subscription (hub-spoke architecture pattern)
+# If your DNS zone is in the spoke subscription, configure azurerm.hub to point to spoke subscription
+data "azurerm_private_dns_zone" "keyvault_primary" {
   provider            = azurerm.hub
-  name                = var.private_dns_zone_name
-  resource_group_name = var.private_dns_zone_resource_group_name != null ? var.private_dns_zone_resource_group_name : var.resource_group_name
-}
-
-# Private DNS zone from spoke subscription (when hub_subscription_id is null)
-data "azurerm_private_dns_zone" "keyvault_spoke" {
-  count               = var.hub_subscription_id == null ? 1 : 0
   name                = var.private_dns_zone_name
   resource_group_name = var.private_dns_zone_resource_group_name != null ? var.private_dns_zone_resource_group_name : var.resource_group_name
 }
 
 # Secondary Private DNS zone (optional, in secondary subscription)
 data "azurerm_private_dns_zone" "keyvault_secondary" {
-  count               = var.enable_secondary_private_endpoint && var.secondary_private_dns_zone_name != null ? 1 : 0
+  count               = var.enable_secondary_private_endpoint ? 1 : 0
   provider            = azurerm.secondary
   name                = var.secondary_private_dns_zone_name
   resource_group_name = var.secondary_private_dns_zone_resource_group_name

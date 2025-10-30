@@ -9,16 +9,6 @@ variable "environment" {
   type        = string
 }
 
-variable "spoke_subscription_id" {
-  description = "Subscription ID for the spoke subscription (where Key Vault will be created)"
-  type        = string
-}
-
-variable "hub_subscription_id" {
-  description = "Subscription ID for the hub subscription (for DNS zone lookup)"
-  type        = string
-}
-
 # Shared Networking Configuration (used by both private endpoints by default)
 variable "virtual_network_name" {
   description = "Name of the existing virtual network (used by both private endpoints unless overridden)"
@@ -87,12 +77,6 @@ variable "primary_network_interface_name" {
 }
 
 # Secondary Private Endpoint Configuration
-variable "secondary_subscription_id" {
-  description = "Subscription ID for the secondary subscription (for secondary private endpoint)"
-  type        = string
-  default     = null
-}
-
 variable "secondary_virtual_network_name" {
   description = "Override: Name of the virtual network for secondary private endpoint (defaults to virtual_network_name)"
   type        = string
@@ -132,7 +116,7 @@ variable "secondary_network_interface_name" {
 variable "secondary_private_dns_zone_name" {
   description = "Name of the private DNS zone for secondary private endpoint (optional)"
   type        = string
-  default     = null
+  default     = "privatelink.vaultcore.azure.net"
 }
 
 variable "secondary_private_dns_zone_resource_group_name" {
