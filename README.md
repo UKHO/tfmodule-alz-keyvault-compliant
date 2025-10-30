@@ -184,7 +184,9 @@ module "key_vault" {
   enable_secondary_private_endpoint = true
 
   # Secondary DNS Configuration (in secondary subscription)
+
   # Note: secondary_private_dns_zone_name defaults to "privatelink.vaultcore.azure.net"
+
   secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
 
   key_vault_name = "kv-myapp-prod-001"
@@ -213,6 +215,7 @@ module "key_vault" {
   resource_group_name = "rg-myapp-prod"
   environment         = "prod"
 
+
   # Shared defaults (used by primary)
   virtual_network_name                = "vnet-spoke-uksouth"
   subnet_name                         = "subnet-pe-uksouth"
@@ -231,6 +234,7 @@ module "key_vault" {
   secondary_virtual_network_resource_group_name  = "rg-network-ukwest"
   
   # Secondary DNS zone (uses default name)
+
   secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
 
   key_vault_name = "kv-myapp-prod-001"
@@ -353,6 +357,7 @@ module "key_vault" {
 ```
 
 ### Scenario 9: RBAC Role Assignments
+
 
 Grant service principals or managed identities access to manage or read secrets:
 
