@@ -92,6 +92,16 @@ output "secondary_dns_zone_id" {
   value       = local.secondary_dns_zone_id
 }
 
+# DNS Zone Virtual Network Link outputs
+output "secondary_dns_zone_vnet_link_id" {
+  description = "The ID of the secondary private DNS zone virtual network link"
+  value = var.enable_secondary_private_endpoint ? (
+    local.secondary_uses_spoke_networking ? 
+      (length(azurerm_private_dns_zone_virtual_network_link.secondary_to_spoke) > 0 ? azurerm_private_dns_zone_virtual_network_link.secondary_to_spoke[0].id : null) :
+      (length(azurerm_private_dns_zone_virtual_network_link.secondary_to_secondary) > 0 ? azurerm_private_dns_zone_virtual_network_link.secondary_to_secondary[0].id : null)
+  ) : null
+}
+
 output "current_tenant_id" {
   description = "The current tenant ID"
   value       = data.azurerm_client_config.current.tenant_id

@@ -465,6 +465,7 @@ This module expects the following providers to be configured by the caller:
 | secondary_virtual_network_resource_group_name | Override VNet RG for secondary endpoint | `string` | Uses `virtual_network_resource_group_name` |
 | secondary_private_dns_zone_name | Name of private DNS zone for secondary endpoint | `string` | `privatelink.vaultcore.azure.net` |
 | secondary_private_dns_zone_resource_group_name | Resource group of secondary DNS zone | `string` | `null` |
+| create_secondary_dns_zone_vnet_links | Create virtual network links for secondary DNS zone | `bool` | `true` |
 | secondary_private_endpoint_name | Custom name for secondary private endpoint | `string` | `{key_vault_name}-pe-secondary` |
 | secondary_network_interface_name | Custom name for secondary NIC | `string` | `{key_vault_name}-pe-secondary-nic` |
 | secondary_private_service_connection_name | Custom name for secondary PSC | `string` | `psc-{key_vault_name}-secondary` |
@@ -510,6 +511,7 @@ This module expects the following providers to be configured by the caller:
 | secondary_subnet_id | Secondary subnet ID (if enabled) |
 | primary_dns_zone_id | Primary DNS zone ID |
 | secondary_dns_zone_id | Secondary DNS zone ID (if configured) |
+| secondary_dns_zone_vnet_link_id | Secondary DNS zone virtual network link ID (if created) |
 
 ### Other Outputs
 
@@ -521,6 +523,37 @@ This module expects the following providers to be configured by the caller:
 | current_client_id | Current client ID |
 | secret_officers | Principal IDs granted Secrets Officer role |
 | secret_users | Principal IDs granted Secrets User role |
+
+## Private DNS Zone Virtual Network Links
+
+### Automatic Link Creation
+
+The module automatically creates virtual network links for the secondary private DNS zone when:
+
+1. **Secondary private endpoint is enabled** (`enable_secondary_private_endpoint = true`)
+2. **Secondary DNS zone is in a different subscription** (`secondary_private_dns_zone_resource_group_name` is specified)
+3. **Link creation is enabled** (`create_secondary_dns_zone_vnet_links = true` - default)
+
+### Scenarios Covered
+
+| Scenario | Description | Link Created |
+|----------|-------------|--------------|
+| **Spoke networking** | Secondary endpoint uses spoke VNet, DNS zone in secondary subscription | ✅ Links secondary DNS zone → spoke VNet |
+| **Secondary networking** | Secondary endpoint uses secondary VNet, DNS zone in secondary subscription | ✅ Links secondary DNS zone → secondary VNet |
+| **Same subscription** | DNS zone in same subscription as VNet | ❌ Not needed - Azure handles this |
+| **Primary DNS zone** | Primary DNS zone already has links | ❌ Not created - assumed to exist |
+
+### Disabling Link Creation
+
+If you manage DNS zone links externally:
+
+```hcl
+module "key_vault" {
+  # ... other configuration ...
+  
+  create_secondary_dns_zone_vnet_links = false
+}
+```
 
 ## Security Configuration
 
