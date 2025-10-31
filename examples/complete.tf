@@ -292,6 +292,60 @@ module "key_vault_dual_endpoints" {
 }
 
 # ============================================
+# Example 7: Dual Endpoints with Custom DNS Link Management
+# ============================================
+
+module "key_vault_custom_dns_links" {
+  source = "../"
+
+  providers = {
+    azurerm           = azurerm
+    azurerm.hub       = azurerm.hub
+    azurerm.secondary = azurerm.secondary
+  }
+
+  resource_group_name = "rg-myapp-prod"
+  environment         = "prod"
+
+  # Networking
+  virtual_network_name                = "vnet-spoke-prod"
+  subnet_name                         = "subnet-privateendpoints"
+  virtual_network_resource_group_name = "rg-network-prod"
+
+  # Enable both endpoints
+  enable_primary_private_endpoint   = true
+  enable_secondary_private_endpoint = true
+
+  # Secondary DNS configuration
+  secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
+  
+  # Disable automatic VNet link creation - we'll manage it externally
+  create_secondary_dns_zone_vnet_links = false
+
+  key_vault_name = "kv-myapp-prod-custom-dns"
+
+  tags = {
+    Environment = "production"
+    DNSManaged  = "external"
+  }
+}
+
+# Manually create the DNS zone VNet link (when create_secondary_dns_zone_vnet_links = false)
+resource "azurerm_private_dns_zone_virtual_network_link" "custom_secondary_link" {
+  provider              = azurerm.secondary
+  name                 = "custom-link-keyvault-secondary"
+  resource_group_name  = "rg-dns-secondary"
+  private_dns_zone_name = "privatelink.vaultcore.azure.net"
+  virtual_network_id   = data.azurerm_virtual_network.spoke.id
+  registration_enabled = false
+
+  tags = {
+    Environment = "production"
+    ManagedBy   = "terraform-external"
+  }
+}
+
+# ============================================
 # Example 6: With RBAC Assignments
 # ============================================
 
