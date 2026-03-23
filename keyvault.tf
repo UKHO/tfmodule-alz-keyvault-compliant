@@ -12,7 +12,7 @@ module "keyvault" {
   # Key Vault settings
   sku_name                      = var.sku_name
   purge_protection_enabled      = true
-  soft_delete_retention_days    = 7
+  soft_delete_retention_days    = 90
   public_network_access_enabled = false
 
   # Disable telemetry
