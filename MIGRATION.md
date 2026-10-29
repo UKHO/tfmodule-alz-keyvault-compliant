@@ -396,6 +396,8 @@ If you encounter issues during migration:
 ## Version Compatibility
 
 - **Legacy Version**: Terraform >= 1.5.0, but did not support `count`, `for_each`, `depends_on`
-- **Modern Version**: Terraform >= 1.5.0, full support for `count`, `for_each`, `depends_on`
+- **Current Version**: Terraform >= 1.11.0 and < 2.0.0, full support for `count`, `for_each`, `depends_on`
 
-Both versions require `azurerm` provider >= 3.70.0.
+The current version pins Key Vault AVM `0.12.0` and requires AzureRM >= 4.81.0 and < 5.0.0. All sibling modules and root provider constraints must allow this range; provider aliases cannot use a different AzureRM version. Modules requiring AzureRM 5.x must be updated before initialization can succeed. Pin callers to tested module commit SHAs or release tags, then run `terraform init -upgrade`.
+
+The DNS virtual network links use the AzureRM 4.x `resource_group_name` and `private_dns_zone_name` arguments rather than the AzureRM 5.x `private_dns_zone_id` argument. Review the caller's plan before applying, especially if its state was previously written by AzureRM 5.x; this compatibility change does not migrate newer provider state.
