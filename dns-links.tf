@@ -11,11 +11,12 @@ resource "azurerm_private_dns_zone_virtual_network_link" "secondary_to_spoke" {
     var.secondary_private_dns_zone_resource_group_name != null
   ) ? 1 : 0
 
-  provider            = azurerm.secondary
-  name                = "link-${var.key_vault_name != null ? var.key_vault_name : "${var.environment}-kv"}-secondary-to-spoke"
-  private_dns_zone_id = data.azurerm_private_dns_zone.keyvault_secondary[0].id
-  virtual_network_id  = data.azurerm_virtual_network.secondary_spoke[0].id
-  registration_enabled = false
+  provider              = azurerm.secondary
+  name                  = "link-${var.key_vault_name != null ? var.key_vault_name : "${var.environment}-kv"}-secondary-to-spoke"
+  resource_group_name   = data.azurerm_private_dns_zone.keyvault_secondary[0].resource_group_name
+  private_dns_zone_name = data.azurerm_private_dns_zone.keyvault_secondary[0].name
+  virtual_network_id    = data.azurerm_virtual_network.secondary_spoke[0].id
+  registration_enabled  = false
 
   tags = merge(
     var.tags,
@@ -37,11 +38,12 @@ resource "azurerm_private_dns_zone_virtual_network_link" "secondary_to_secondary
     var.secondary_private_dns_zone_resource_group_name != null
   ) ? 1 : 0
 
-  provider            = azurerm.secondary
-  name                = "link-${var.key_vault_name != null ? var.key_vault_name : "${var.environment}-kv"}-secondary-to-secondary"
-  private_dns_zone_id = data.azurerm_private_dns_zone.keyvault_secondary[0].id
-  virtual_network_id  = data.azurerm_virtual_network.secondary_override[0].id
-  registration_enabled = false
+  provider              = azurerm.secondary
+  name                  = "link-${var.key_vault_name != null ? var.key_vault_name : "${var.environment}-kv"}-secondary-to-secondary"
+  resource_group_name   = data.azurerm_private_dns_zone.keyvault_secondary[0].resource_group_name
+  private_dns_zone_name = data.azurerm_private_dns_zone.keyvault_secondary[0].name
+  virtual_network_id    = data.azurerm_virtual_network.secondary_override[0].id
+  registration_enabled  = false
 
   tags = merge(
     var.tags,

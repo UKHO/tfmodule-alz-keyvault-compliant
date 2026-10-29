@@ -3,12 +3,12 @@
 # with proper provider configuration to support count, for_each, and depends_on
 
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.11.0, < 2.0.0"
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.70.0"
+      version = ">= 4.81.0, < 5.0.0"
     }
   }
 }

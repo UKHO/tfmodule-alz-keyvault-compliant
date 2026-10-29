@@ -412,9 +412,25 @@ module "key_vault" {
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.5.0 |
-| azurerm | >= 3.70.0 |
+| terraform | >= 1.11.0, < 2.0.0 |
+| azurerm | >= 4.81.0, < 5.0.0 |
 | random | >= 3.4.0 |
+
+The nested Azure Verified Module is pinned to `Azure/avm-res-keyvault-vault/azurerm` version `0.12.0`. Its requirements set the Terraform and AzureRM ranges above. AzureRM 5.x is not supported by this dependency.
+
+Terraform selects one version of each provider across the entire configuration, including aliased providers. All sibling modules (including storage modules) must therefore allow AzureRM `>= 4.81.0, < 5.0.0`. A root version constraint or `terraform init -upgrade` cannot resolve a sibling module that requires AzureRM 5.x.
+
+For Git-based module sources, pin this module and sibling modules to tested commit SHAs or release tags using `?ref=...` rather than tracking `main`. After updating all incompatible module references and root provider constraints, run `terraform init -upgrade` in the calling repository.
+
+### Compatibility Validation
+
+The fixture supplies the provider aliases required by this reusable module. These checks do not require Azure credentials or deploy resources:
+
+```shell
+terraform -chdir=tests/compatibility init -backend=false
+terraform -chdir=tests/compatibility validate
+terraform -chdir=tests/compatibility providers
+```
 
 ## Providers
 

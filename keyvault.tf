@@ -1,7 +1,7 @@
 # Key Vault using Azure Verified Module
 module "keyvault" {
   source  = "Azure/avm-res-keyvault-vault/azurerm"
-  version = "~> 0.9"
+  version = "0.12.0"
 
   # Basic configuration
   name                = var.key_vault_name != null ? var.key_vault_name : "${var.environment}-${random_string.suffix[0].result}-kv"
