@@ -34,9 +34,14 @@ variable "enable_primary_private_endpoint" {
 }
 
 variable "enable_secondary_private_endpoint" {
-  description = "Enable or disable the secondary private endpoint"
+  description = "Enable the legacy secondary private DNS zone A record using the primary endpoint IP; retained for compatibility"
   type        = bool
   default     = false
+
+  validation {
+    condition     = !var.enable_secondary_private_endpoint || var.enable_primary_private_endpoint
+    error_message = "The secondary DNS zone record requires enable_primary_private_endpoint = true."
+  }
 }
 
 # Primary Private Endpoint Configuration (optional overrides)
@@ -76,15 +81,15 @@ variable "primary_network_interface_name" {
   default     = null
 }
 
-# Secondary Private Endpoint Configuration
+# Secondary DNS Zone Configuration
 variable "secondary_virtual_network_name" {
-  description = "Override: Name of the virtual network for secondary private endpoint (defaults to virtual_network_name)"
+  description = "Override: Name of the VNet linked to the secondary private DNS zone (defaults to virtual_network_name)"
   type        = string
   default     = null
 }
 
 variable "secondary_subnet_name" {
-  description = "Override: Name of the subnet for secondary private endpoint (defaults to subnet_name)"
+  description = "Legacy compatibility hint used to select the secondary provider VNet lookup path; no subnet endpoint is created"
   type        = string
   default     = null
 }
@@ -96,25 +101,25 @@ variable "secondary_virtual_network_resource_group_name" {
 }
 
 variable "secondary_private_endpoint_name" {
-  description = "Custom name for the secondary private endpoint. If not provided, will use key_vault_name-pe-secondary"
+  description = "Deprecated and unused: secondary private endpoints are no longer created"
   type        = string
   default     = null
 }
 
 variable "secondary_private_service_connection_name" {
-  description = "Custom name for the secondary private service connection. If not provided, will use psc-key_vault_name-secondary"
+  description = "Deprecated and unused: secondary private endpoints are no longer created"
   type        = string
   default     = null
 }
 
 variable "secondary_network_interface_name" {
-  description = "Custom name for the secondary network interface. If not provided, will use key_vault_name-pe-secondary-nic"
+  description = "Deprecated and unused: secondary private endpoints are no longer created"
   type        = string
   default     = null
 }
 
 variable "secondary_private_dns_zone_name" {
-  description = "Name of the private DNS zone for secondary private endpoint (optional)"
+  description = "Name of the secondary private DNS zone receiving the primary endpoint IP"
   type        = string
   default     = "privatelink.vaultcore.azure.net"
 }

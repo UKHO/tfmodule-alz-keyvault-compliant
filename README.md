@@ -1,14 +1,14 @@
 # Azure Key Vault Terraform Module
 
-This Terraform module creates an Azure Key Vault using the Azure Verified Module (AVM) with secure configurations including support for multiple private endpoints across different Azure subscriptions.
+This Terraform module creates an Azure Key Vault using the Azure Verified Module (AVM), with one private endpoint and optional DNS records across Azure subscriptions.
 
 ## Features
 
 - ✅ Uses Azure Verified Module (AVM) for Key Vault
 - ✅ **Multi-subscription support** - Hub-and-spoke architecture ready
-- ✅ **Dual private endpoints** - Support for primary and secondary private endpoints
-- ✅ **Flexible networking** - Connect to same or different subnets
-- ✅ **Multiple DNS zones** - Support for private DNS zones in different subscriptions
+- ✅ **Single private endpoint** - Avoids duplicating endpoint costs across hubs
+- ✅ **Flexible DNS** - Mirror the primary endpoint IP into a secondary private DNS zone
+- ✅ **Flexible networking** - Link DNS zones to same or different VNets
 - ✅ **RBAC role assignments** - Built-in support for Key Vault Secrets Officer and Secrets User roles
 - ✅ Private endpoint with existing private DNS zone integration
 - ✅ Public network access disabled
@@ -128,7 +128,7 @@ module "key_vault" {
   resource_group_name = "rg-myapp-prod"
   environment         = "prod"
 
-  # Networking (shared by both endpoints)
+  # Primary endpoint networking
   virtual_network_name                = "vnet-spoke-prod"
   subnet_name                         = "subnet-privateendpoints"
   virtual_network_resource_group_name = "rg-network-prod"
@@ -151,9 +151,9 @@ module "key_vault" {
 }
 ```
 
-### Scenario 2: Dual Private Endpoints (Same Subnet, Different DNS Zones)
+### Scenario 2: One Private Endpoint, Two DNS Zones
 
-Both private endpoints in the same subnet, but with DNS zones in different subscriptions:
+The primary private endpoint is registered in the primary DNS zone, and its IP is also written to the secondary hub DNS zone. No second private endpoint is created:
 
 ```hcl
 module "key_vault" {
@@ -170,7 +170,7 @@ module "key_vault" {
   resource_group_name = "rg-myapp-prod"
   environment         = "prod"
 
-  # Shared Networking (both endpoints use this)
+  # Primary endpoint networking
   virtual_network_name                = "vnet-spoke-prod"
   subnet_name                         = "subnet-privateendpoints"
   virtual_network_resource_group_name = "rg-network-prod"
@@ -179,7 +179,7 @@ module "key_vault" {
   private_dns_zone_name                = "privatelink.vaultcore.azure.net"
   private_dns_zone_resource_group_name = "rg-dns-hub"
 
-  # Enable both private endpoints
+  # Enable the primary endpoint and mirror its IP into the secondary DNS zone
   enable_primary_private_endpoint   = true
   enable_secondary_private_endpoint = true
 
@@ -197,9 +197,9 @@ module "key_vault" {
 }
 ```
 
-### Scenario 3: Dual Private Endpoints (Different Subnets)
+### Scenario 3: Secondary DNS Zone Linked to Another VNet
 
-Private endpoints in different subnets (e.g., different regions or networks):
+Link the secondary DNS zone to another VNet while retaining one primary private endpoint:
 
 ```hcl
 module "key_vault" {
@@ -224,11 +224,11 @@ module "key_vault" {
   private_dns_zone_name                = "privatelink.vaultcore.azure.net"
   private_dns_zone_resource_group_name = "rg-dns-hub"
 
-  # Enable both endpoints
+  # Enable the primary endpoint and mirror its IP into the secondary DNS zone
   enable_primary_private_endpoint   = true
   enable_secondary_private_endpoint = true
 
-  # Override networking for secondary endpoint
+  # Select the VNet linked to the secondary DNS zone
   secondary_virtual_network_name                 = "vnet-spoke-ukwest"
   secondary_subnet_name                          = "subnet-pe-ukwest"
   secondary_virtual_network_resource_group_name  = "rg-network-ukwest"
@@ -241,20 +241,20 @@ module "key_vault" {
 }
 ```
 
-### Scenario 4: Toggle Private Endpoints On/Off
+### Scenario 4: Toggle the Private Endpoint and DNS Alias
 
-Enable or disable endpoints independently:
+Enable or disable the primary endpoint and secondary DNS record:
 
 ```hcl
-# Deploy with only secondary endpoint
+# A secondary DNS record requires the primary endpoint
 enable_primary_private_endpoint   = false
 enable_secondary_private_endpoint = true
 
-# Or deploy with both
+# Deploy with the primary endpoint and secondary DNS record
 enable_primary_private_endpoint   = true
 enable_secondary_private_endpoint = true
 
-# Or deploy with neither (for testing public access scenarios)
+# Or deploy with neither endpoint nor secondary DNS record
 enable_primary_private_endpoint   = false
 enable_secondary_private_endpoint = false
 ```
@@ -451,15 +451,15 @@ This module expects the following providers to be configured by the caller:
 |------|-------------|------|:--------:|
 | resource_group_name | Name of the existing resource group where the Key Vault will be created | `string` | yes |
 | environment | Environment name (e.g., dev, test, prod) | `string` | yes |
-| virtual_network_name | Name of the existing virtual network (used by both private endpoints unless overridden) | `string` | yes |
-| subnet_name | Name of the existing subnet for private endpoints (used by both unless overridden) | `string` | yes |
+| virtual_network_name | Name of the existing virtual network for the primary private endpoint and, by default, the secondary DNS-zone link | `string` | yes |
+| subnet_name | Name of the existing subnet for the primary private endpoint | `string` | yes |
 
 ### Private Endpoint Control
 
 | Name | Description | Type | Default |
 |------|-------------|------|---------|
 | enable_primary_private_endpoint | Enable or disable the primary private endpoint | `bool` | `true` |
-| enable_secondary_private_endpoint | Enable or disable the secondary private endpoint | `bool` | `false` |
+| enable_secondary_private_endpoint | Enable the legacy secondary-zone A record using the primary endpoint IP; no second endpoint is created | `bool` | `false` |
 
 ### Primary Private Endpoint Configuration
 
@@ -472,19 +472,19 @@ This module expects the following providers to be configured by the caller:
 | primary_network_interface_name | Custom name for primary NIC | `string` | `{key_vault_name}-pe-primary-nic` |
 | primary_private_service_connection_name | Custom name for primary PSC | `string` | `psc-{key_vault_name}-primary` |
 
-### Secondary Private Endpoint Configuration
+### Secondary DNS Zone Configuration
 
 | Name | Description | Type | Default |
 |------|-------------|------|---------|
-| secondary_virtual_network_name | Override VNet for secondary endpoint | `string` | Uses `virtual_network_name` |
-| secondary_subnet_name | Override subnet for secondary endpoint | `string` | Uses `subnet_name` |
-| secondary_virtual_network_resource_group_name | Override VNet RG for secondary endpoint | `string` | Uses `virtual_network_resource_group_name` |
-| secondary_private_dns_zone_name | Name of private DNS zone for secondary endpoint | `string` | `privatelink.vaultcore.azure.net` |
+| secondary_virtual_network_name | Override VNet linked to the secondary DNS zone | `string` | Uses `virtual_network_name` |
+| secondary_subnet_name | Deprecated and ignored; no secondary private endpoint subnet is used | `string` | `null` |
+| secondary_virtual_network_resource_group_name | Override resource group of VNet linked to secondary DNS zone | `string` | Uses `virtual_network_resource_group_name` |
+| secondary_private_dns_zone_name | Name of the secondary private DNS zone receiving the primary endpoint IP | `string` | `privatelink.vaultcore.azure.net` |
 | secondary_private_dns_zone_resource_group_name | Resource group of secondary DNS zone | `string` | `null` |
 | create_secondary_dns_zone_vnet_links | Create virtual network links for secondary DNS zone | `bool` | `true` |
-| secondary_private_endpoint_name | Custom name for secondary private endpoint | `string` | `{key_vault_name}-pe-secondary` |
-| secondary_network_interface_name | Custom name for secondary NIC | `string` | `{key_vault_name}-pe-secondary-nic` |
-| secondary_private_service_connection_name | Custom name for secondary PSC | `string` | `psc-{key_vault_name}-secondary` |
+| secondary_private_endpoint_name | Deprecated and ignored; no secondary private endpoint is created | `string` | `null` |
+| secondary_network_interface_name | Deprecated and ignored; no secondary private endpoint is created | `string` | `null` |
+| secondary_private_service_connection_name | Deprecated and ignored; no secondary private endpoint is created | `string` | `null` |
 
 ### Optional Configuration
 
@@ -520,11 +520,13 @@ This module expects the following providers to be configured by the caller:
 |------|-------------|
 | private_endpoints | Information about all private endpoints |
 | primary_private_endpoint_enabled | Whether primary endpoint is enabled |
-| secondary_private_endpoint_enabled | Whether secondary endpoint is enabled |
+| secondary_private_endpoint_enabled | Whether the legacy secondary DNS record is enabled (output name retained for compatibility) |
+| secondary_dns_record_id | ID of the A record created in the secondary DNS zone, if applicable |
+| secondary_dns_record_ip | Primary private endpoint IP used by the secondary DNS zone, if enabled |
 | primary_virtual_network_id | Primary VNet ID |
 | primary_subnet_id | Primary subnet ID |
 | secondary_virtual_network_id | Secondary VNet ID (if enabled) |
-| secondary_subnet_id | Secondary subnet ID (if enabled) |
+| secondary_subnet_id | Deprecated output; always `null` because no secondary endpoint is created |
 | primary_dns_zone_id | Primary DNS zone ID |
 | secondary_dns_zone_id | Secondary DNS zone ID (if configured) |
 | secondary_dns_zone_vnet_link_id | Secondary DNS zone virtual network link ID (if created) |
@@ -544,9 +546,9 @@ This module expects the following providers to be configured by the caller:
 
 ### Automatic Link Creation
 
-The module automatically creates virtual network links for the secondary private DNS zone when:
+The module can create a virtual network link for the secondary private DNS zone when:
 
-1. **Secondary private endpoint is enabled** (`enable_secondary_private_endpoint = true`)
+1. **Secondary DNS mirroring is enabled** (`enable_secondary_private_endpoint = true`; the input name is retained for compatibility)
 2. **Secondary DNS zone is in a different subscription** (`secondary_private_dns_zone_resource_group_name` is specified)
 3. **Link creation is enabled** (`create_secondary_dns_zone_vnet_links = true` - default)
 
@@ -554,8 +556,8 @@ The module automatically creates virtual network links for the secondary private
 
 | Scenario | Description | Link Created |
 |----------|-------------|--------------|
-| **Spoke networking** | Secondary endpoint uses spoke VNet, DNS zone in secondary subscription | ✅ Links secondary DNS zone → spoke VNet |
-| **Secondary networking** | Secondary endpoint uses secondary VNet, DNS zone in secondary subscription | ✅ Links secondary DNS zone → secondary VNet |
+| **Spoke networking** | Secondary DNS zone is in the secondary subscription | ✅ Links secondary DNS zone → spoke VNet |
+| **Secondary networking** | A secondary VNet is specified for the DNS link | ✅ Links secondary DNS zone → secondary VNet |
 | **Same subscription** | DNS zone in same subscription as VNet | ❌ Not needed - Azure handles this |
 | **Primary DNS zone** | Primary DNS zone already has links | ❌ Not created - assumed to exist |
 

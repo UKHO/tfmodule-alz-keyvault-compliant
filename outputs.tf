@@ -41,8 +41,18 @@ output "primary_private_endpoint_enabled" {
 }
 
 output "secondary_private_endpoint_enabled" {
-  description = "Whether the secondary private endpoint is enabled"
+  description = "Whether the legacy secondary DNS zone A record is enabled; no secondary private endpoint is created"
   value       = var.enable_secondary_private_endpoint
+}
+
+output "secondary_dns_record_id" {
+  description = "The ID of the A record created in the secondary private DNS zone, if enabled"
+  value       = length(azurerm_private_dns_a_record.secondary_primary_ip) > 0 ? azurerm_private_dns_a_record.secondary_primary_ip[0].id : null
+}
+
+output "secondary_dns_record_ip" {
+  description = "The primary private endpoint IP used by the secondary private DNS zone, if enabled"
+  value       = var.enable_secondary_private_endpoint ? module.keyvault.private_endpoints["primary"].private_service_connection[0].private_ip_address : null
 }
 
 # Network configuration outputs
@@ -78,8 +88,8 @@ output "secondary_virtual_network_id" {
 }
 
 output "secondary_subnet_id" {
-  description = "The ID of the secondary subnet"
-  value       = var.enable_secondary_private_endpoint ? local.secondary_subnet_id : null
+  description = "Deprecated output; no secondary private endpoint subnet is used"
+  value       = null
 }
 
 output "primary_dns_zone_id" {
@@ -96,9 +106,9 @@ output "secondary_dns_zone_id" {
 output "secondary_dns_zone_vnet_link_id" {
   description = "The ID of the secondary private DNS zone virtual network link"
   value = var.enable_secondary_private_endpoint ? (
-    local.secondary_uses_spoke_networking ? 
-      (length(azurerm_private_dns_zone_virtual_network_link.secondary_to_spoke) > 0 ? azurerm_private_dns_zone_virtual_network_link.secondary_to_spoke[0].id : null) :
-      (length(azurerm_private_dns_zone_virtual_network_link.secondary_to_secondary) > 0 ? azurerm_private_dns_zone_virtual_network_link.secondary_to_secondary[0].id : null)
+    local.secondary_uses_spoke_networking ?
+    (length(azurerm_private_dns_zone_virtual_network_link.secondary_to_spoke) > 0 ? azurerm_private_dns_zone_virtual_network_link.secondary_to_spoke[0].id : null) :
+    (length(azurerm_private_dns_zone_virtual_network_link.secondary_to_secondary) > 0 ? azurerm_private_dns_zone_virtual_network_link.secondary_to_secondary[0].id : null)
   ) : null
 }
 

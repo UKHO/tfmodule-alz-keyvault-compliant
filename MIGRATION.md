@@ -241,6 +241,8 @@ module "key_vault" {
 
 ## New Capabilities After Migration
 
+The `enable_secondary_private_endpoint` input is retained for compatibility, but it no longer creates a second private endpoint. When enabled, it writes the primary endpoint's IP to the configured secondary private DNS zone. The primary endpoint must also be enabled; secondary endpoint naming and subnet inputs are deprecated. Secondary VNet inputs, when provided, select the VNet linked to the secondary DNS zone.
+
 Once migrated, you can now use:
 
 ### 1. `depends_on` - Control Dependencies
