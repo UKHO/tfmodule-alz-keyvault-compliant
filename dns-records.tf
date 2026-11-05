@@ -1,6 +1,9 @@
 # Mirror the primary private endpoint address into the legacy secondary hub zone.
 resource "azurerm_private_dns_a_record" "secondary_primary_ip" {
-  count = var.enable_secondary_private_endpoint && local.secondary_dns_zone_id != local.primary_dns_zone_id ? 1 : 0
+  count = (
+    var.enable_secondary_private_endpoint &&
+    var.create_secondary_dns_zone_a_record
+  ) ? 1 : 0
 
   provider            = azurerm.secondary
   name                = module.keyvault.name

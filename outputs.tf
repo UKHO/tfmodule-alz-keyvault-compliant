@@ -52,7 +52,7 @@ output "secondary_dns_record_id" {
 
 output "secondary_dns_record_ip" {
   description = "The primary private endpoint IP used by the secondary private DNS zone, if enabled"
-  value       = var.enable_secondary_private_endpoint ? module.keyvault.private_endpoints["primary"].private_service_connection[0].private_ip_address : null
+  value       = length(azurerm_private_dns_a_record.secondary_primary_ip) > 0 ? module.keyvault.private_endpoints["primary"].private_service_connection[0].private_ip_address : null
 }
 
 # Network configuration outputs

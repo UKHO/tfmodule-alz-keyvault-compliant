@@ -130,6 +130,12 @@ variable "secondary_private_dns_zone_resource_group_name" {
   default     = null
 }
 
+variable "create_secondary_dns_zone_a_record" {
+  description = "Whether to create a secondary-zone A record for the primary endpoint IP; set false when both zone references identify the same zone"
+  type        = bool
+  default     = true
+}
+
 variable "create_secondary_dns_zone_vnet_links" {
   description = "Whether to create virtual network links for the secondary private DNS zone. Set to false if managing links externally."
   type        = bool

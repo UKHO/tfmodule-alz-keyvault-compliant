@@ -467,6 +467,7 @@ This module expects the following providers to be configured by the caller:
 | secondary_virtual_network_resource_group_name | Override resource group of VNet linked to secondary DNS zone | `string` | Uses `virtual_network_resource_group_name` |
 | secondary_private_dns_zone_name | Name of the secondary private DNS zone receiving the primary endpoint IP | `string` | `privatelink.vaultcore.azure.net` |
 | secondary_private_dns_zone_resource_group_name | Resource group of secondary DNS zone | `string` | `null` |
+| create_secondary_dns_zone_a_record | Create the secondary-zone A record; set to `false` if it is the same zone as the primary zone | `bool` | `true` |
 | create_secondary_dns_zone_vnet_links | Create virtual network links for secondary DNS zone | `bool` | `true` |
 | secondary_private_endpoint_name | Deprecated and ignored; no secondary private endpoint is created | `string` | `null` |
 | secondary_network_interface_name | Deprecated and ignored; no secondary private endpoint is created | `string` | `null` |
