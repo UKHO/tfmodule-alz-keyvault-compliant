@@ -1,6 +1,8 @@
 # Azure Key Vault Terraform Module
 
-This Terraform module creates an Azure Key Vault using the Azure Verified Module (AVM), with one private endpoint and optional DNS records across Azure subscriptions.
+This Terraform module creates an Azure Key Vault using the Azure Verified
+Module (AVM), with one private endpoint and optional DNS records across Azure
+subscriptions.
 
 ## Features
 
@@ -22,53 +24,25 @@ This Terraform module creates an Azure Key Vault using the Azure Verified Module
 
 This module supports flexible hub-and-spoke architectures:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Spoke Subscription (Key Vault Lives Here)                  │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Key Vault                                           │   │
-│  │  ├─ Private Endpoint 1 (Primary)   ────────┐       │   │
-│  │  └─ Private Endpoint 2 (Secondary) ────┐   │       │   │
-│  └────────────────────────────────────│───│───┘       │   │
-│                                        │   │           │   │
-│  ┌─────────────────────────────────┐  │   │           │   │
-│  │  VNet (Spoke)                    │  │   │           │   │
-│  │  └─ Subnet (Private Endpoints)───┼──┘   │           │   │
-│  └──────────────────────────────────┘       │           │   │
-└─────────────────────────────────────────────┼───────────┘   │
-                                              │               │
-┌─────────────────────────────────────────────┼───────────┐   │
-│  Hub Subscription (Shared Networking)       │           │   │
-│  ┌──────────────────────────────────────────┘           │   │
-│  │  Private DNS Zone (Primary)                          │   │
-│  │  privatelink.vaultcore.azure.net                     │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                                              │
-┌─────────────────────────────────────────────┼───────────┐
-│  Secondary Subscription (Optional)          │           │
-│  ┌──────────────────────────────────────────┘           │
-│  │  Private DNS Zone (Secondary)                        │
-│  │  privatelink.vaultcore.azure.net                     │
-│  └──────────────────────────────────────────────────────┘
-└─────────────────────────────────────────────────────────────┘
+```text
+Key Vault in spoke subscription
+  └─ One private endpoint
+    ├─ Primary private DNS zone in hub
+    └─ Optional secondary private DNS zone in another hub
+      Both zones resolve the vault to the same endpoint IP
 ```
 
 ## Prerequisites
 
 Before using this module, ensure you have:
 
-1. **Spoke Subscription**: Where the Key Vault will be created
-   - Existing Azure Resource Group
-   - Existing Virtual Network and Subnet (for private endpoints)
-
-2. **Hub Subscription**: For shared networking resources
-   - Existing Private DNS Zone (`privatelink.vaultcore.azure.net`)
-
-3. **Secondary Subscription** (Optional): For additional DNS resolution
-   - Existing Private DNS Zone (if you want a second private endpoint)
-
-4. Appropriate permissions to create resources in all subscriptions
+- **Spoke subscription**: Existing resource group, VNet, and subnet for the
+  Key Vault and primary private endpoint.
+- **Hub subscription**: Existing private DNS zone
+  (`privatelink.vaultcore.azure.net`).
+- **Secondary subscription** (optional): Existing private DNS zone to mirror
+  the primary endpoint IP.
+- Permissions to create resources in the relevant subscriptions.
 
 ## Provider Configuration
 
@@ -153,7 +127,8 @@ module "key_vault" {
 
 ### Scenario 2: One Private Endpoint, Two DNS Zones
 
-The primary private endpoint is registered in the primary DNS zone, and its IP is also written to the secondary hub DNS zone. No second private endpoint is created:
+The primary private endpoint is registered in the primary DNS zone. Its IP is
+also written to the secondary hub DNS zone; no second endpoint is created:
 
 ```hcl
 module "key_vault" {
@@ -358,7 +333,6 @@ module "key_vault" {
 
 ### Scenario 9: RBAC Role Assignments
 
-
 Grant service principals or managed identities access to manage or read secrets:
 
 ```hcl
@@ -394,6 +368,7 @@ module "key_vault" {
 ```
 
 **Important Notes:**
+
 - Use **principal IDs** (Object IDs), not Application IDs
 - For Service Principals: Find in Azure AD → Enterprise Applications → Object ID
 - For Managed Identities: Find in the managed identity resource → Properties → Principal ID
@@ -402,6 +377,7 @@ module "key_vault" {
 ## Module Features
 
 ✅ **Modern Terraform Module** - No internal provider configurations, fully compatible with:
+
 - `depends_on` - Control module dependencies
 - `count` - Create multiple instances conditionally
 - `for_each` - Create multiple instances from a map or set
@@ -411,20 +387,30 @@ module "key_vault" {
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ------ | --------- |
 | terraform | >= 1.11.0, < 2.0.0 |
 | azurerm | >= 4.81.0, < 5.0.0 |
 | random | >= 3.4.0 |
 
-The nested Azure Verified Module is pinned to `Azure/avm-res-keyvault-vault/azurerm` version `0.12.0`. Its requirements set the Terraform and AzureRM ranges above. AzureRM 5.x is not supported by this dependency.
+The nested Azure Verified Module is pinned to
+`Azure/avm-res-keyvault-vault/azurerm` version `0.12.0`. Its requirements set
+the Terraform and AzureRM ranges above. AzureRM 5.x is not supported by this
+dependency.
 
-Terraform selects one version of each provider across the entire configuration, including aliased providers. All sibling modules (including storage modules) must therefore allow AzureRM `>= 4.81.0, < 5.0.0`. A root version constraint or `terraform init -upgrade` cannot resolve a sibling module that requires AzureRM 5.x.
+Terraform selects one version of each provider across the configuration,
+including aliased providers. All sibling modules must allow AzureRM
+`>= 4.81.0, < 5.0.0`. A root version constraint or `terraform init -upgrade`
+cannot resolve a sibling module that requires AzureRM 5.x.
 
-For Git-based module sources, pin this module and sibling modules to tested commit SHAs or release tags using `?ref=...` rather than tracking `main`. After updating all incompatible module references and root provider constraints, run `terraform init -upgrade` in the calling repository.
+For Git-based module sources, pin this module and sibling modules to tested
+commit SHAs or release tags using `?ref=...` rather than tracking `main`. After
+updating incompatible module references and root provider constraints, run
+`terraform init -upgrade` in the calling repository.
 
 ### Compatibility Validation
 
-The fixture supplies the provider aliases required by this reusable module. These checks do not require Azure credentials or deploy resources:
+The fixture supplies the provider aliases required by this reusable module.
+These checks do not require Azure credentials or deploy resources:
 
 ```shell
 terraform -chdir=tests/compatibility init -backend=false
@@ -437,7 +423,7 @@ terraform -chdir=tests/compatibility providers
 This module expects the following providers to be configured by the caller:
 
 | Provider Alias | Purpose |
-|----------------|---------|
+| ---------------- | --------- |
 | `azurerm` (default) | Spoke subscription - Where Key Vault and its resources are created |
 | `azurerm.primary` | Hub subscription - For primary private DNS zone lookups |
 | `azurerm.secondary` | Secondary subscription - For secondary private DNS zone (optional but must be configured) |
@@ -448,7 +434,7 @@ This module expects the following providers to be configured by the caller:
 ### Required Variables
 
 | Name | Description | Type | Required |
-|------|-------------|------|:--------:|
+| ------ | ------------- | ------ | :--------: |
 | resource_group_name | Name of the existing resource group where the Key Vault will be created | `string` | yes |
 | environment | Environment name (e.g., dev, test, prod) | `string` | yes |
 | virtual_network_name | Name of the existing virtual network for the primary private endpoint and, by default, the secondary DNS-zone link | `string` | yes |
@@ -457,14 +443,14 @@ This module expects the following providers to be configured by the caller:
 ### Private Endpoint Control
 
 | Name | Description | Type | Default |
-|------|-------------|------|---------|
+| ------ | ------------- | ------ | ------- |
 | enable_primary_private_endpoint | Enable or disable the primary private endpoint | `bool` | `true` |
 | enable_secondary_private_endpoint | Enable the legacy secondary-zone A record using the primary endpoint IP; no second endpoint is created | `bool` | `false` |
 
 ### Primary Private Endpoint Configuration
 
 | Name | Description | Type | Default |
-|------|-------------|------|---------|
+| ------ | ------------- | ------ | --------- |
 | primary_virtual_network_name | Override VNet for primary endpoint | `string` | Uses `virtual_network_name` |
 | primary_subnet_name | Override subnet for primary endpoint | `string` | Uses `subnet_name` |
 | primary_virtual_network_resource_group_name | Override VNet RG for primary endpoint | `string` | Uses `virtual_network_resource_group_name` |
@@ -475,7 +461,7 @@ This module expects the following providers to be configured by the caller:
 ### Secondary DNS Zone Configuration
 
 | Name | Description | Type | Default |
-|------|-------------|------|---------|
+| ------ | ------------- | ------ | --------- |
 | secondary_virtual_network_name | Override VNet linked to the secondary DNS zone | `string` | Uses `virtual_network_name` |
 | secondary_subnet_name | Deprecated and ignored; no secondary private endpoint subnet is used | `string` | `null` |
 | secondary_virtual_network_resource_group_name | Override resource group of VNet linked to secondary DNS zone | `string` | Uses `virtual_network_resource_group_name` |
@@ -489,7 +475,7 @@ This module expects the following providers to be configured by the caller:
 ### Optional Configuration
 
 | Name | Description | Type | Default |
-|------|-------------|------|---------|
+| ------ | ------------- | ------ | --------- |
 | key_vault_name | Custom name for the Key Vault | `string` | `{environment}-{random}-kv` |
 | sku_name | Key Vault SKU (standard or premium) | `string` | `standard` |
 | virtual_network_resource_group_name | Resource group of VNet (if different) | `string` | `resource_group_name` |
@@ -506,7 +492,7 @@ This module expects the following providers to be configured by the caller:
 ### Key Vault Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | key_vault_id | The ID of the Key Vault |
 | key_vault_name | The name of the Key Vault |
 | key_vault_uri | The URI of the Key Vault |
@@ -517,7 +503,7 @@ This module expects the following providers to be configured by the caller:
 ### Private Endpoint Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | private_endpoints | Information about all private endpoints |
 | primary_private_endpoint_enabled | Whether primary endpoint is enabled |
 | secondary_private_endpoint_enabled | Whether the legacy secondary DNS record is enabled (output name retained for compatibility) |
@@ -534,7 +520,7 @@ This module expects the following providers to be configured by the caller:
 ### Other Outputs
 
 | Name | Description |
-|------|-------------|
+| ------ | ------------- |
 | network_acls | Network ACL configuration |
 | resource_group_location | Resource group location |
 | current_tenant_id | Current tenant ID |
@@ -555,7 +541,7 @@ The module can create a virtual network link for the secondary private DNS zone 
 ### Scenarios Covered
 
 | Scenario | Description | Link Created |
-|----------|-------------|--------------|
+| ---------- | ------------- | -------------- |
 | **Spoke networking** | Secondary DNS zone is in the secondary subscription | ✅ Links secondary DNS zone → spoke VNet |
 | **Secondary networking** | A secondary VNet is specified for the DNS link | ✅ Links secondary DNS zone → secondary VNet |
 | **Same subscription** | DNS zone in same subscription as VNet | ❌ Not needed - Azure handles this |
@@ -583,7 +569,7 @@ This module implements several security best practices:
 - **Public Access**: Disabled by default
 - **Purge Protection**: Enabled to prevent accidental deletion
 - **Soft Delete**: 7-day retention period for recovery
-- **Flexible Access Control**: Support for multiple private endpoints
+- **Flexible DNS**: Resolve the vault through multiple private DNS zones
 - **RBAC Role Assignments**: Built-in support for Key Vault Secrets Officer and Secrets User roles
 - **No Secrets in State**: Module does not manage secrets to avoid state file exposure
 
@@ -592,12 +578,14 @@ This module implements several security best practices:
 The module supports automatic assignment of the following Azure RBAC roles:
 
 ### Key Vault Secrets Officer
+
 - **Purpose**: Full secret management capabilities
 - **Permissions**: Create, read, update, delete, list secrets
 - **Use Case**: DevOps pipelines, administrators, secret rotation services
 - **Variable**: `secret_officers`
 
 ### Key Vault Secrets User
+
 - **Purpose**: Read-only secret access
 - **Permissions**: Read and list secrets
 - **Use Case**: Applications, microservices, functions that only need to read secrets
@@ -606,16 +594,19 @@ The module supports automatic assignment of the following Azure RBAC roles:
 ### Finding Principal IDs
 
 **For Service Principals:**
+
 ```bash
 az ad sp show --id <application-id> --query id -o tsv
 ```
 
 **For Managed Identities:**
+
 ```bash
 az identity show --name <identity-name> --resource-group <rg-name> --query principalId -o tsv
 ```
 
 **For User-Assigned Managed Identities attached to resources:**
+
 ```bash
 # For VM
 az vm identity show --name <vm-name> --resource-group <rg-name> --query principalId -o tsv
@@ -634,7 +625,8 @@ az webapp identity show --name <app-name> --resource-group <rg-name> --query pri
 
 ### Recommended Secret Management Approaches
 
-**Option 1: Use RBAC + External Management**
+### Option 1: Use RBAC + External Management
+
 ```hcl
 # Grant permissions in Terraform
 secret_officers = ["service-principal-id"]
@@ -647,15 +639,18 @@ secret_officers = ["service-principal-id"]
 # - Application code with Azure SDK
 ```
 
-**Option 2: Separate Secrets Module (for initial population only)**
-Create a separate Terraform workspace/state for one-time secret population, then manage externally.
+### Option 2: Separate Secrets Module
 
-**Option 3: Azure DevOps/GitHub Pipelines**
+For initial population only, create a separate Terraform workspace/state, then
+manage secrets externally.
+
+### Option 3: Azure DevOps/GitHub Pipelines
+
 Use pipeline tasks to populate secrets after Key Vault creation.
 
 ## File Structure
 
-```
+```text
 tfmodule-keyvault/
 ├── versions.tf          # Terraform and provider version requirements
 ├── providers.tf         # Provider configurations (spoke, hub, secondary)
@@ -673,31 +668,37 @@ tfmodule-keyvault/
 ## Common Use Cases
 
 ### 1. Hub-and-Spoke with Single DNS Zone
+
 Most common scenario - Key Vault in spoke, DNS in hub:
+
 ```hcl
 enable_primary_private_endpoint   = true
 enable_secondary_private_endpoint = false
 ```
 
 ### 2. Multi-Subscription DNS Resolution
-Key Vault accessible from multiple subscriptions via different DNS zones:
+
+Resolve the Key Vault through a second DNS zone in another subscription:
+
 ```hcl
-enable_primary_private_endpoint   = true
 enable_secondary_private_endpoint = true
-secondary_subscription_id         = "different-subscription-id"
+secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
 ```
 
-### 3. Disaster Recovery Setup
-Primary and secondary endpoints in different regions:
+### 3. DNS Resolution Across VNets
+
+Link the secondary DNS zone to a VNet in another region:
+
 ```hcl
-enable_primary_private_endpoint   = true
 enable_secondary_private_endpoint = true
 secondary_virtual_network_name    = "vnet-dr-region"
-secondary_subnet_name             = "subnet-pe-dr"
+secondary_virtual_network_resource_group_name = "rg-network-dr"
 ```
 
 ### 4. Grant Application Access
+
 Managed identities for applications need secret access:
+
 ```hcl
 secret_users = [
   "11111111-2222-3333-4444-555555555555"  # App Service Managed Identity
@@ -707,19 +708,25 @@ secret_users = [
 ## Troubleshooting
 
 ### DNS Resolution Issues
+
 If you can't resolve the Key Vault hostname:
+
 1. Verify private DNS zone is linked to the VNet
 2. Check the private endpoint is in "Approved" state
 3. Ensure DNS zone resource group name is correct
 
 ### Multiple Subscriptions
+
 When using multiple subscriptions:
+
 1. Ensure you have appropriate RBAC permissions in all subscriptions
 2. Verify provider configurations have correct subscription IDs
 3. Check that networking resources exist in the specified subscriptions
 
 ### Private Endpoint Connection
+
 If private endpoint fails to create:
+
 1. Verify subnet has no network policies blocking private endpoints
 2. Check subnet has available IP addresses
 3. Ensure Key Vault resource provider is registered
