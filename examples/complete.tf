@@ -31,7 +31,7 @@ provider "azurerm" {
 
 # Hub provider - Hub subscription (where primary DNS zone resides)
 provider "azurerm" {
-  alias           = "hub"
+  alias = "hub"
   features {}
   subscription_id = var.hub_subscription_id
 }
@@ -39,7 +39,7 @@ provider "azurerm" {
 # Secondary provider - Secondary subscription (for secondary DNS zone, if needed)
 # Note: This must be configured even if you don't use secondary private endpoint
 provider "azurerm" {
-  alias           = "secondary"
+  alias = "secondary"
   features {}
   subscription_id = var.secondary_subscription_id != null ? var.secondary_subscription_id : var.hub_subscription_id
 }
@@ -69,12 +69,12 @@ variable "secondary_subscription_id" {
 # ============================================
 
 module "key_vault_basic" {
-  source = "../"  # Path to the module
+  source = "../" # Path to the module
 
   # CRITICAL: Pass provider configurations to the module
   providers = {
     azurerm           = azurerm           # Spoke subscription
-    azurerm.primary       = azurerm.primary       # Hub subscription
+    azurerm.primary   = azurerm.primary   # Hub subscription
     azurerm.secondary = azurerm.secondary # Secondary subscription
   }
 
@@ -117,11 +117,11 @@ variable "create_key_vault" {
 
 module "key_vault_conditional" {
   source = "../"
-  count  = var.create_key_vault ? 1 : 0  # ✅ Now supported!
+  count  = var.create_key_vault ? 1 : 0 # ✅ Now supported!
 
   providers = {
     azurerm           = azurerm
-    azurerm.primary       = azurerm.primary
+    azurerm.primary   = azurerm.primary
     azurerm.secondary = azurerm.secondary
   }
 
@@ -145,7 +145,7 @@ output "conditional_key_vault_id" {
 variable "environments" {
   description = "Map of environments to create Key Vaults for"
   type = map(object({
-    resource_group_name = string
+    resource_group_name  = string
     virtual_network_name = string
   }))
   default = {
@@ -166,18 +166,18 @@ variable "environments" {
 
 module "key_vault_multi_env" {
   source   = "../"
-  for_each = var.environments  # ✅ Now supported!
+  for_each = var.environments # ✅ Now supported!
 
   providers = {
     azurerm           = azurerm
-    azurerm.primary       = azurerm.primary
+    azurerm.primary   = azurerm.primary
     azurerm.secondary = azurerm.secondary
   }
 
-  resource_group_name  = each.value.resource_group_name
-  environment          = each.key
-  key_vault_name       = "kv-myapp-${each.key}"
-  
+  resource_group_name = each.value.resource_group_name
+  environment         = each.key
+  key_vault_name      = "kv-myapp-${each.key}"
+
   virtual_network_name = each.value.virtual_network_name
   subnet_name          = "subnet-privateendpoints"
 
@@ -223,7 +223,7 @@ module "key_vault_with_dependencies" {
 
   providers = {
     azurerm           = azurerm
-    azurerm.primary       = azurerm.primary
+    azurerm.primary   = azurerm.primary
     azurerm.secondary = azurerm.secondary
   }
 
@@ -247,22 +247,22 @@ module "key_vault_with_dependencies" {
 }
 
 # ============================================
-# Example 5: Dual Private Endpoints
+# Example 5: Primary Private Endpoint with Secondary Hub DNS Zone
 # ============================================
 
-module "key_vault_dual_endpoints" {
+module "key_vault_secondary_dns_alias" {
   source = "../"
 
   providers = {
     azurerm           = azurerm
-    azurerm.primary       = azurerm.primary
-    azurerm.secondary = azurerm.secondary  # Secondary subscription required
+    azurerm.primary   = azurerm.primary
+    azurerm.secondary = azurerm.secondary # Secondary subscription required
   }
 
   resource_group_name = "rg-myapp-prod"
   environment         = "prod"
 
-  # Shared networking (both endpoints use this)
+  # Primary endpoint networking
   virtual_network_name                = "vnet-spoke-prod"
   subnet_name                         = "subnet-privateendpoints"
   virtual_network_resource_group_name = "rg-network-prod"
@@ -271,24 +271,24 @@ module "key_vault_dual_endpoints" {
   private_dns_zone_name                = "privatelink.vaultcore.azure.net"
   private_dns_zone_resource_group_name = "rg-dns-hub"
 
-  # Enable both private endpoints
+  # Keep one private endpoint and mirror its IP into the legacy hub DNS zone
   enable_primary_private_endpoint   = true
   enable_secondary_private_endpoint = true
 
-  # Secondary DNS configuration (in secondary subscription)
-  # Note: secondary_private_dns_zone_name defaults to "privatelink.vaultcore.azure.net"
+  # Secondary DNS configuration (in legacy hub subscription)
+  # No secondary private endpoint is created.
   secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
 
   key_vault_name = "kv-myapp-prod-001"
 
   tags = {
-    Environment = "production"
-    HA          = "enabled"
+    Environment      = "production"
+    DNSCompatibility = "enabled"
   }
 }
 
 # ============================================
-# Example 7: Dual Endpoints with Custom DNS Link Management
+# Example 7: Secondary DNS Zone with Custom DNS Link Management
 # ============================================
 
 module "key_vault_custom_dns_links" {
@@ -296,7 +296,7 @@ module "key_vault_custom_dns_links" {
 
   providers = {
     azurerm           = azurerm
-    azurerm.primary       = azurerm.primary
+    azurerm.primary   = azurerm.primary
     azurerm.secondary = azurerm.secondary
   }
 
@@ -308,13 +308,13 @@ module "key_vault_custom_dns_links" {
   subnet_name                         = "subnet-privateendpoints"
   virtual_network_resource_group_name = "rg-network-prod"
 
-  # Enable both endpoints
+  # Enable the primary endpoint and mirror its IP into the secondary DNS zone
   enable_primary_private_endpoint   = true
   enable_secondary_private_endpoint = true
 
   # Secondary DNS configuration
   secondary_private_dns_zone_resource_group_name = "rg-dns-secondary"
-  
+
   # Disable automatic VNet link creation - we'll manage it externally
   create_secondary_dns_zone_vnet_links = false
 
@@ -329,11 +329,11 @@ module "key_vault_custom_dns_links" {
 # Manually create the DNS zone VNet link (when create_secondary_dns_zone_vnet_links = false)
 resource "azurerm_private_dns_zone_virtual_network_link" "custom_secondary_link" {
   provider              = azurerm.secondary
-  name                 = "custom-link-keyvault-secondary"
-  resource_group_name  = "rg-dns-secondary"
+  name                  = "custom-link-keyvault-secondary"
+  resource_group_name   = "rg-dns-secondary"
   private_dns_zone_name = "privatelink.vaultcore.azure.net"
-  virtual_network_id   = data.azurerm_virtual_network.spoke.id
-  registration_enabled = false
+  virtual_network_id    = data.azurerm_virtual_network.spoke.id
+  registration_enabled  = false
 
   tags = {
     Environment = "production"
@@ -350,7 +350,7 @@ module "key_vault_with_rbac" {
 
   providers = {
     azurerm           = azurerm
-    azurerm.primary       = azurerm.primary
+    azurerm.primary   = azurerm.primary
     azurerm.secondary = azurerm.secondary
   }
 
@@ -363,13 +363,13 @@ module "key_vault_with_rbac" {
 
   # Grant secret management permissions
   secret_officers = [
-    "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",  # DevOps Service Principal
+    "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", # DevOps Service Principal
   ]
 
   # Grant read-only secret access
   secret_users = [
-    "11111111-2222-3333-4444-555555555555",  # Application Managed Identity
-    "66666666-7777-8888-9999-000000000000",  # Web App Managed Identity
+    "11111111-2222-3333-4444-555555555555", # Application Managed Identity
+    "66666666-7777-8888-9999-000000000000", # Web App Managed Identity
   ]
 
   tags = {

@@ -1,7 +1,7 @@
 # Private DNS Zone Virtual Network Links
 # These are required when private DNS zones are in different subscriptions than the VNets
 
-# Secondary Private DNS Zone VNet Link (when secondary endpoint uses spoke networking)
+# Secondary Private DNS Zone VNet Link (when using the shared/spoke VNet)
 # This links the secondary private DNS zone (in secondary subscription) to the spoke VNet
 resource "azurerm_private_dns_zone_virtual_network_link" "secondary_to_spoke" {
   count = (
@@ -28,7 +28,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "secondary_to_spoke" {
   )
 }
 
-# Secondary Private DNS Zone VNet Link (when secondary endpoint uses different networking)
+# Secondary Private DNS Zone VNet Link (when using a VNet in the secondary subscription)
 # This links the secondary private DNS zone to the secondary VNet (both in secondary subscription)
 resource "azurerm_private_dns_zone_virtual_network_link" "secondary_to_secondary" {
   count = (

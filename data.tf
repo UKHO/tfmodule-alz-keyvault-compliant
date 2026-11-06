@@ -21,35 +21,20 @@ data "azurerm_subnet" "primary" {
   resource_group_name  = data.azurerm_virtual_network.primary[0].resource_group_name
 }
 
-# ===== SECONDARY PRIVATE ENDPOINT NETWORKING =====
-# Secondary private endpoint networking - in SPOKE subscription (when using shared networking)
+# ===== SECONDARY DNS ZONE VNet LINK NETWORKING =====
+# Secondary DNS zone VNet lookup - in SPOKE subscription (when using shared networking)
 data "azurerm_virtual_network" "secondary_spoke" {
   count               = var.enable_secondary_private_endpoint && local.secondary_uses_spoke_networking ? 1 : 0
   name                = local.secondary_vnet_name
   resource_group_name = local.secondary_vnet_rg
 }
 
-data "azurerm_subnet" "secondary_spoke" {
-  count                = var.enable_secondary_private_endpoint && local.secondary_uses_spoke_networking ? 1 : 0
-  name                 = local.secondary_subnet_name
-  virtual_network_name = data.azurerm_virtual_network.secondary_spoke[0].name
-  resource_group_name  = data.azurerm_virtual_network.secondary_spoke[0].resource_group_name
-}
-
-# Secondary private endpoint networking - in SECONDARY subscription (when overridden)
+# Secondary DNS zone VNet lookup - in SECONDARY subscription (when overridden)
 data "azurerm_virtual_network" "secondary_override" {
   count               = var.enable_secondary_private_endpoint && !local.secondary_uses_spoke_networking ? 1 : 0
   provider            = azurerm.secondary
   name                = local.secondary_vnet_name
   resource_group_name = local.secondary_vnet_rg
-}
-
-data "azurerm_subnet" "secondary_override" {
-  count                = var.enable_secondary_private_endpoint && !local.secondary_uses_spoke_networking ? 1 : 0
-  provider             = azurerm.secondary
-  name                 = local.secondary_subnet_name
-  virtual_network_name = data.azurerm_virtual_network.secondary_override[0].name
-  resource_group_name  = data.azurerm_virtual_network.secondary_override[0].resource_group_name
 }
 
 # ===== PRIVATE DNS ZONES =====
@@ -61,7 +46,7 @@ data "azurerm_private_dns_zone" "keyvault_primary" {
   resource_group_name = var.private_dns_zone_resource_group_name != null ? var.private_dns_zone_resource_group_name : var.resource_group_name
 }
 
-# Secondary Private DNS zone (optional, in secondary subscription)
+# Secondary private DNS zone for the legacy DNS alias (optional, in secondary subscription)
 data "azurerm_private_dns_zone" "keyvault_secondary" {
   count               = var.enable_secondary_private_endpoint ? 1 : 0
   provider            = azurerm.secondary
